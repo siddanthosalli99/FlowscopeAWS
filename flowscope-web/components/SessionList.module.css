@@ -1,0 +1,10 @@
+.list {
+  padding: 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.emptyWrap {
+  padding: 30px 8px;
+}

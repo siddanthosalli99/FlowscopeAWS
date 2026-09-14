@@ -1,0 +1,91 @@
+.sidebar {
+  padding: 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sectionTitle {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--fs-text-muted);
+  border-bottom: 1px dashed var(--fs-border-soft);
+  padding-bottom: 6px;
+  margin-bottom: 2px;
+}
+
+.libraryRow {
+  font-size: 13px;
+  color: var(--fs-text);
+  line-height: 1.4;
+}
+
+.libraryCount {
+  font-weight: 700;
+  color: var(--fs-accent-strong);
+}
+
+.filterButton {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 7px 10px;
+  background: var(--fs-bg-card);
+  color: var(--fs-text);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.filterButtonActive {
+  background: var(--fs-accent);
+  color: var(--fs-accent-text);
+  border-color: var(--fs-border);
+}
+
+.tagChip {
+  display: inline-block;
+  padding: 4px 8px;
+  margin: 0 6px 6px 0;
+  background: var(--fs-bg-card);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.tagsEmpty {
+  font-size: 12px;
+  font-style: italic;
+  color: var(--fs-text-faint);
+}
+
+.tagsWrap {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.favButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  background: var(--fs-bg-card);
+  color: var(--fs-text);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.favButtonActive {
+  background: var(--fs-accent);
+  color: var(--fs-accent-text);
+}
+
+.favIcon {
+  flex: none;
+}

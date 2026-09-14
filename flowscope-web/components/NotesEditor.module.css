@@ -1,0 +1,28 @@
+.wrap {
+  margin-top: 18px;
+}
+
+.label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--fs-text-muted);
+  margin-bottom: 6px;
+}
+
+.textarea {
+  width: 100%;
+  min-height: 90px;
+  padding: 12px 14px;
+  background: var(--fs-bg-card);
+  border: 1px solid var(--fs-border);
+  border-radius: var(--fs-radius);
+  box-shadow: var(--fs-shadow-offset) var(--fs-shadow-offset) 0 0 var(--fs-shadow);
+  color: var(--fs-text);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.textarea::placeholder {
+  color: var(--fs-text-faint);
+}

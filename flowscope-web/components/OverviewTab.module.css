@@ -1,0 +1,88 @@
+.wrap {
+  padding: 18px 4px 4px;
+}
+
+.statsRow {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.emptyBlocks {
+  margin-top: 16px;
+  font-size: 13px;
+  font-style: italic;
+  color: var(--fs-text-muted);
+}
+
+.divider {
+  border: none;
+  border-top: 1px solid var(--fs-border-soft);
+  margin: 22px 0 16px;
+}
+
+.actionsRow {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.actionButton {
+  padding: 8px 14px;
+  background: var(--fs-bg-card);
+  color: var(--fs-text);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.actionButton:disabled {
+  opacity: 0.5;
+}
+
+.dangerButton {
+  color: var(--fs-accent-strong);
+}
+
+.statusMsg {
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--fs-text-muted);
+}
+.commandsSection {
+  margin-top: 20px;
+}
+
+.sectionTitle {
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.commandsList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.commandItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: 2px 2px 0 var(--shadow);
+}
+
+.commandNumber {
+  min-width: 20px;
+  font-size: 11px;
+  opacity: 0.6;
+}
+
+.commandItem code {
+  font-family: monospace;
+  font-size: 13px;
+}

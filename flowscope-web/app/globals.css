@@ -1,0 +1,125 @@
+:root {
+  /* ---- FlowScope palette --------------------------------------------- */
+  --fs-bg: #f7d3db;
+  --fs-bg-sidebar: #f4c9d3;
+  --fs-bg-panel: #f9dde3;
+  --fs-bg-card: #fbe4e9;
+  --fs-bg-input: #fbe4e9;
+  --fs-bg-topbar: #f4c9d3;
+
+  --fs-border: #7c2f42;
+  --fs-border-soft: #a85a6c;
+
+  --fs-text: #5c1f2e;
+  --fs-text-muted: #a15b6a;
+  --fs-text-faint: #c08793;
+
+  --fs-accent: #d6486a;
+  --fs-accent-strong: #b7314f;
+  --fs-accent-text: #fdeef1;
+
+  --fs-selected: #f2aebb;
+  --fs-hover: #f7d3db;
+
+  --fs-shadow: #7c2f42;
+
+  --fs-radius: 2px;
+  --fs-shadow-offset: 3px;
+
+  --fs-font-mono: ui-monospace, "SFMono-Regular", "JetBrains Mono", Consolas,
+    "Liberation Mono", Menlo, monospace;
+
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--fs-bg);
+  color: var(--fs-text);
+  font-family: var(--fs-font-mono);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+textarea,
+select {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+textarea {
+  resize: vertical;
+}
+
+/* Visible keyboard focus everywhere, retro-square style */
+:focus-visible {
+  outline: 2px solid var(--fs-border);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--fs-accent);
+  color: var(--fs-accent-text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* Retro raised-button shadow, shared by buttons/inputs/cards */
+.fs-raised {
+  border: 1px solid var(--fs-border);
+  box-shadow: var(--fs-shadow-offset) var(--fs-shadow-offset) 0 0 var(--fs-shadow);
+  border-radius: var(--fs-radius);
+}
+
+.fs-raised:active {
+  transform: translate(1px, 1px);
+  box-shadow: 2px 2px 0 0 var(--fs-shadow);
+}
+
+.fs-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--fs-border-soft) transparent;
+}
+
+.fs-scrollbar::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.fs-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--fs-border-soft);
+  border: 2px solid var(--fs-bg-panel);
+}
+
+.fs-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}

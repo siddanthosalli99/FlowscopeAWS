@@ -1,0 +1,25 @@
+.tabList {
+  display: flex;
+  gap: 2px;
+  margin-top: 18px;
+  border-bottom: 2px solid var(--fs-border);
+}
+
+.tab {
+  padding: 8px 14px;
+  background: var(--fs-bg-card);
+  border: 1px solid var(--fs-border);
+  border-bottom: none;
+  border-radius: 2px 2px 0 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--fs-text-muted);
+  position: relative;
+  top: 2px;
+}
+
+.tabActive {
+  background: var(--fs-bg);
+  color: var(--fs-text);
+  border-bottom: 2px solid var(--fs-bg);
+}

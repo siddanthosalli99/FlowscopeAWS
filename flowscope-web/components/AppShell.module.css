@@ -1,0 +1,71 @@
+.shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  border-top: 2px solid var(--fs-border);
+}
+
+.sidebarCol {
+  flex: 0 0 236px;
+  border-right: 2px solid var(--fs-border);
+  overflow-y: auto;
+  background: var(--fs-bg-sidebar);
+}
+
+.listCol {
+  flex: 0 0 330px;
+  border-right: 2px solid var(--fs-border);
+  overflow-y: auto;
+  background: var(--fs-bg-panel);
+}
+
+.mainCol {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  background: var(--fs-bg);
+}
+
+@media (max-width: 1180px) {
+  .listCol {
+    flex-basis: 280px;
+  }
+  .sidebarCol {
+    flex-basis: 200px;
+  }
+}
+
+@media (max-width: 900px) {
+  .body {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  .sidebarCol,
+  .listCol,
+  .mainCol {
+    flex: none;
+    width: 100%;
+    border-right: none;
+    border-bottom: 2px solid var(--fs-border);
+    max-height: none;
+    overflow: visible;
+  }
+
+  .sidebarCol {
+    max-height: 260px;
+    overflow-y: auto;
+  }
+
+  .listCol {
+    max-height: 360px;
+    overflow-y: auto;
+  }
+}

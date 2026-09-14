@@ -1,0 +1,22 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: flowscope-api
+    ports:
+      - "8002:8002"
+    volumes:
+      - ./sessions:/app/sessions
+
+  web:
+    build:
+      context: ./flowscope-web
+      dockerfile: Dockerfile
+    container_name: flowscope-web
+    ports:
+      - "3000:3000"
+    environment:
+      FLOWSCOPE_API_URL: http://api:8002
+    depends_on:
+      - api

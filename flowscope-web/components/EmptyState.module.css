@@ -1,0 +1,10 @@
+.wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--fs-text-muted);
+  font-style: italic;
+  font-size: 13px;
+}

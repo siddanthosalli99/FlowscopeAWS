@@ -1,0 +1,36 @@
+.wrap {
+  padding: 22px 4px 4px;
+}
+
+.terminal {
+  background: #2a1219;
+  color: #f5c9d3;
+  padding: 16px 18px;
+  border: 1px solid var(--fs-border);
+  border-radius: var(--fs-radius);
+  box-shadow: var(--fs-shadow-offset) var(--fs-shadow-offset) 0 0 var(--fs-shadow);
+  font-size: 13px;
+  line-height: 1.7;
+  max-height: 560px;
+  overflow-y: auto;
+}
+
+.line {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.prompt {
+  color: #ff9db3;
+  margin-right: 6px;
+}
+
+.inputLine {
+  font-weight: 700;
+  color: #ffe1e8;
+}
+
+.outputLine {
+  color: #d6a4b2;
+  margin: 2px 0 10px 0;
+}

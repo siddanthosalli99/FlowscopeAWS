@@ -1,0 +1,37 @@
+.wrap {
+  padding: 22px 4px 4px;
+}
+
+.pre {
+  background: #2a1219;
+  color: #ffe1e8;
+  padding: 16px 18px;
+  border: 1px solid var(--fs-border);
+  border-radius: var(--fs-radius);
+  box-shadow: var(--fs-shadow-offset) var(--fs-shadow-offset) 0 0 var(--fs-shadow);
+  font-size: 12.5px;
+  line-height: 1.6;
+  max-height: 560px;
+  overflow: auto;
+  margin: 0;
+}
+
+.key {
+  color: #ff9db3;
+}
+
+.string {
+  color: #c9f0c6;
+}
+
+.number {
+  color: #a8d4ff;
+}
+
+.boolean {
+  color: #ffd68a;
+}
+
+.null {
+  color: #d6a4b2;
+}
