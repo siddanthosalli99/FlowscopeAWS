@@ -1,126 +1,263 @@
 # FlowScope
 
-**FlowScope** is a terminal-session capture and reconstruction tool equipped with an optional AI documentation pipeline. It launches a shell inside a Unix pseudo-terminal (PTY), relays I/O to the real terminal, records events as JSON, and transforms the raw interaction into command blocks, clean transcripts, AI-curated guides, and PDF documents.
+**FlowScope** is a lightweight developer workflow monitoring and session-recording tool designed to capture, store, and visualize terminal activity during development sessions.
 
-Unlike conventional command-history loggers, FlowScope captures interaction at the PTY level. This enables it to handle full-screen tools like `vim`, `top`, or `less` without fragmenting the output into noise.
+It provides a simple way to record development sessions from the CLI and view them through a web interface backed by a FastAPI service.
 
----
+## Features
 
-## 🛠 Core Pipeline
+* Record terminal sessions from the command line
+* Send recorded sessions to a remote FlowScope API
+* Store and retrieve recorded sessions
+* Web-based session viewing
+* FastAPI backend
+* Docker-based deployment
+* AWS EC2 deployment
+* Simple CLI workflow
+* Lightweight architecture suitable for personal projects and development environments
 
-| Phase                  | Artifact            | Description                                                                                                                            |
-| ---------------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| **1. Recorder**        | `session.json`      | Captures raw terminal input/output events over a real PTY.                                                                             |
-| **2. Parser**          | Reconstructed lines | Replays output through a terminal emulator (`pyte`) to resolve cursor movements, overwrites, and escape codes.                         |
-| **3. Heuristics**      | `*.blocks.json`     | Groups lines into command blocks and collapses full-screen interactive sessions (`vim`, `top`, etc.) into verbatim interactive blocks. |
-| **4. Markdown Export** | `*.transcript.md`   | Generates a deterministic, human-readable session transcript.                                                                          |
-| **5. AI Curator**      | `*.guide.md`        | Uses Gemini to infer intent and produce a streamlined technical guide.                                                                 |
-| **6. PDF Export**      | `*.guide.pdf`       | Renders the curated Markdown guide into a printable PDF document.                                                                      |
+## Architecture
 
-
----
-
-## 💻 System & Platform Requirements
-
-* **OS:** Linux or macOS (Windows is **not** supported due to `pty`, `termios`, and `fcntl` dependencies).
-
-
-* **Python:** 3.x
-
-
-* **CLI Dependencies:** `typer`, `rich`
-
-* **Parsing & PDF Dependencies:** `pyte`, `reportlab`
-
-* **AI Curation:** Gemini API key (`google-genai` SDK or standard library fallback). `python-dotenv` is optional for loading `.env` files.
-
-
-
----
-
-## 📦 Installation & Setup
-
-1. **Clone the repository structure:**
+```text
+Developer
+    │
+    │  flowscope.py
+    ▼
+FlowScope CLI
+    │
+    │ HTTP
+    ▼
+FlowScope API
+    │
+    ▼
+Session Storage
+    │
+    ▼
+Web Interface
 ```
-flowscope-project/
+
+The CLI is responsible for recording the session and communicating with the backend API. The API handles session storage and serves the data required by the web interface.
+
+## Tech Stack
+
+* **Python**
+* **FastAPI**
+* **Docker**
+* **Docker Compose**
+* **HTML / CSS / JavaScript**
+* **AWS EC2**
+* **Git & GitHub**
+
+## Project Structure
+
+```text
+FlowScope/
 ├── flowscope.py
-├── flowscope_parser.py
-├── flowscope_heuristics.py
-├── flowscope_markdown.py
-├── flowscope_curator.py
-├── flowscope_pdf.py
+├── flowscope_api.py
+├── docker-compose.yml
+├── requirements.txt
+├── README.md
+└── ...
 ```
 
+## Getting Started
 
-2. **Create and activate a virtual environment:**
+### 1. Clone the repository
+
+```bash
+git clone <your-repository-url>
+cd FlowScope
+```
+
+### 2. Create a virtual environment
+
 ```bash
 python3 -m venv .venv
+```
+
+Activate it:
+
+```bash
 source .venv/bin/activate
 ```
 
-
-3. **Install dependencies:**
-```bash
-python -m pip install --upgrade pip
-python -m pip install typer rich pyte reportlab python-dotenv google-genai
-```
-
-
-4. **Configure API Key (Optional):**
-```bash
-export GEMINI_API_KEY="your_gemini_api_key"
-```
-
-
-
----
-
-## 🚀 Quick Start & CLI Usage
-
-### 1. Record a Terminal Session
-
-Start a recorded shell session. Work normally, then type `exit` or press `Ctrl-D` when finished:
+### 3. Install dependencies
 
 ```bash
-# Record with automated AI guide and PDF generation
-flowscope record --title "Fix Nginx Config"
-
-# Recommended: Capture session only (no external AI calls)
-flowscope record --no-guide --title "Fix Nginx Config"
+pip install -r requirements.txt
 ```
-Sessions are organized automatically by date:
-`sessions/YYYY-MM-DD/<slugified-title>/
 
-### 2. Generate Guides Post-Recording
-Process a previously recorded session file:
+## Running FlowScope Locally
+
+Start the FlowScope API:
 
 ```bash
-flowscope guide sessions/2026-09-09/fix-nginx-config/fix-nginx-config.json \
-  --focus "Document the final working configuration and remove failed attempts"
+uvicorn flowscope_api:app --host 0.0.0.0 --port 8002
 ```
-### 3. Curate Existing Block Data
-Re-run the AI curation step on an existing `blocks.json` file:
+
+The API will be available at:
+
+```text
+http://localhost:8002
+```
+
+Set the API URL used by the CLI:
+
 ```bash
-flowscope curate sessions/2026-09-09/fix-nginx-config/fix-nginx-config.blocks.json --out guide.md
+export FLOWSCOPE_API_URL="http://localhost:8002"
 ```
 
----
+Start recording a session:
 
-## 🔒 Security & Best Practices
-
-> **Warning regarding Sensitive Data:** FlowScope records raw input and output streams at the PTY level. Keystrokes, passwords, tokens, full-screen editor buffers (`vim`, `nano`), and environment secrets are captured in `session.json` and `blocks.json`
-
-* **Sanitize First:** Always inspect `session.json` and `blocks.json` for secrets before running the AI curator or sharing artifacts externally.
-* **Check Interactive Blocks:** Pay special attention to `block_type: "interactive"` entries, as their `raw_output` field contains complete, verbatim buffer contents.
-* **Environment:** Perform recording in test environments or with disposable credentials where possible.
-
----
-
-## 📚 Common Commands Reference
-
-* **Display help:** `flowscope --help`
-* **Record with custom output dir:** `flowscope record --dir ./my-sessions`
-* **Specify model:** `flowscope record --model gemini-3.6-flash`
-* **Provide inline focus:** `flowscope record -f "Create a step-by-step runbook"`
-
+```bash
+python flowscope.py record
 ```
+
+FlowScope will begin recording the terminal session.
+
+Exit the recording session when finished.
+
+## Running with Docker
+
+FlowScope can also be run using Docker Compose.
+
+```bash
+docker compose up -d
+```
+
+Check running containers:
+
+```bash
+docker compose ps
+```
+
+To view the application logs:
+
+```bash
+docker compose logs
+```
+
+## Using the CLI
+
+The primary CLI workflow is:
+
+```bash
+python flowscope.py record
+```
+
+The CLI uses the `FLOWSCOPE_API_URL` environment variable to determine where recorded sessions should be sent.
+
+Example:
+
+```bash
+export FLOWSCOPE_API_URL="http://localhost:8002"
+python flowscope.py record
+```
+
+For a remotely deployed FlowScope API:
+
+```bash
+export FLOWSCOPE_API_URL="http://<server-ip>:8002"
+python flowscope.py record
+```
+
+## AWS Deployment
+
+FlowScope is currently deployed on an **AWS EC2** instance using Docker.
+
+The deployment consists of:
+
+```text
+Local Machine
+     │
+     │ HTTP requests
+     ▼
+AWS EC2
+     │
+     ▼
+Docker
+     │
+     ├── FlowScope API
+     │
+     └── Web Interface
+```
+
+After deploying the API, configure the CLI to communicate with the EC2 instance:
+
+```bash
+export FLOWSCOPE_API_URL="http://<EC2-IP>:8002"
+```
+
+Then start recording:
+
+```bash
+python flowscope.py record
+```
+
+> **Note:** The EC2 instance and network configuration may incur AWS charges depending on the account, region, instance type, usage, and applicable Free Tier eligibility.
+
+## API
+
+The backend is implemented using FastAPI.
+
+Once the API is running, the interactive API documentation is available at:
+
+```text
+http://localhost:8002/docs
+```
+
+The OpenAPI specification can also be accessed through FastAPI's standard endpoints.
+
+## Development Workflow
+
+FlowScope was built using a development workflow centered around:
+
+```text
+Development
+    ↓
+Git
+    ↓
+GitHub
+    ↓
+Docker
+    ↓
+AWS EC2
+    ↓
+Running Application
+```
+
+This project also provided hands-on experience with containerization, API development, deployment, and remote application management.
+
+## Why FlowScope?
+
+Development sessions often involve multiple commands, experiments, configuration changes, and debugging steps. FlowScope provides a way to capture those sessions and make them accessible through a centralized interface.
+
+The project was also designed as a practical exercise in combining:
+
+* Backend development
+* CLI tooling
+* Docker
+* API communication
+* Cloud deployment
+* DevOps workflows
+
+## Future Improvements
+
+Potential future improvements include:
+
+* User authentication
+* Persistent database storage
+* Session search and filtering
+* Session metadata
+* Better session visualization
+* HTTPS support
+* Custom domain
+* Automated deployment through CI/CD
+* Improved frontend UI
+* Multi-user support
+
+## Author
+
+**Siddant Hosalli**
+
+Built as a practical project exploring **Python, FastAPI, Docker, cloud deployment, and MLOps/DevOps workflows**.
