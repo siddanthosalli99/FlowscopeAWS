@@ -1,36 +1,6 @@
-"""FlowScope - Terminal Session Recorder and Guide Generator.
-
-FlowScope pipeline:
-
-    Phase 1: Recorder
-        ↓
-    session.json
-        ↓
-    Phase 2: Parser
-        ↓
-    reconstructed terminal data
-        ↓
-    Phase 3: Heuristics
-        ↓
-    blocks.json
-        ├──────────────→ Phase 4: Markdown Export
-        │                         ↓
-        │                    transcript.md
-        │
-        └──────────────→ Phase 5: AI Curator
-                                  ↓
-                             curated.md
-                                  ↓
-                           Phase 6: PDF Export
-                                  ↓
-                               guide.pdf
-
-The recorded session and blocks.json are treated as source artifacts.
-AI curation produces a separate guide and does not modify the source data.
-"""
-
 from __future__ import annotations
 
+import requests
 import codecs
 import errno
 import json
@@ -126,17 +96,13 @@ console = Console()
 
 READ_CHUNK = 4096
 
-# Matches runs of characters that aren't safe/readable in a filename, so a
-# user-supplied --title can be folded into the session filename without
-# risking path separators, spaces, or other filesystem-unfriendly bytes.
 _SLUG_RE = re.compile(r"[^A-Za-z0-9._-]+")
 
 
 def _slugify(text: str, max_length: int = 60) -> str:
     """Turn an arbitrary title into a short, filesystem-safe slug.
 
-    Returns "" if nothing usable is left after cleaning (e.g. the title
-    was pure punctuation/whitespace), so callers can fall back cleanly.
+    Returns "" if nothing usable is left after cleaning.
     """
 
     slug = _SLUG_RE.sub("-", text.strip()).strip("-")
@@ -144,15 +110,11 @@ def _slugify(text: str, max_length: int = 60) -> str:
     return slug[:max_length].strip("-")
 
 
-def _unique_session_dir(day_dir: Path, base_name: str) -> tuple[Path, str]:
-    """Pick a session folder name under `day_dir`, avoiding collisions.
-
-    Just returns `base_name` as-is in the (overwhelmingly common) case
-    where nothing by that name exists yet under the day folder. Only
-    falls back to `base_name-2`, `base_name-3`, ... if a same-day
-    session already used that exact name -- so names stay clean and
-    title-only unless a real collision forces a disambiguator.
-    """
+def _unique_session_dir(
+    day_dir: Path,
+    base_name: str,
+) -> tuple[Path, str]:
+    """Pick a session folder name under `day_dir`, avoiding collisions."""
 
     candidate = base_name
     n = 2
@@ -211,15 +173,7 @@ class Session:
 # ---------------------------------------------------------------------------
 
 def _get_size() -> tuple[int, int]:
-    """Return terminal size as (rows, columns).
-
-    Falls back to 24x80 both when the OS call fails outright (no
-    controlling terminal) and when it "succeeds" but reports a
-    degenerate 0x0 size (seen on some ptys before a size has been set,
-    e.g. under certain multiplexers/CI runners) -- a 0-column screen
-    silently breaks pyte's line reconstruction downstream instead of
-    raising, so it has to be caught here.
-    """
+    """Return terminal size as (rows, columns)."""
 
     try:
         size = os.get_terminal_size()
@@ -265,33 +219,16 @@ def record_session(
 ) -> Path:
     """Record an interactive terminal session.
 
-    The recorder uses a real Unix PTY and stores raw input/output events.
-
     Artifacts are organized as:
 
         sessions_dir/
             YYYY-MM-DD/
                 <session_name>/
                     <session_name>.json
-                    <session_name>.blocks.json        (Phase 3)
-                    <session_name>.transcript.md       (Phase 4)
-                    <session_name>.guide.md            (Phase 5)
-                    <session_name>.guide.pdf           (Phase 6)
-
-    i.e. one self-contained folder per session, grouped under a
-    per-day folder. This keeps `sessions_dir` browsable as a session
-    library instead of a flat pile of files, and it's exactly the
-    "unlimited recursive subfolders, grouped by filename stem" layout
-    the FlowScope desktop app's folder scanner already expects -- no
-    changes needed on that side.
-
-    `session_name` is just the title's slug (e.g. "Fix Nginx Config" ->
-    "fix-nginx-config") -- no timestamp clutter. The raw title is also
-    stored in session.json. If the title can't be turned into a usable
-    slug (empty/punctuation-only), FlowScope falls back to a short
-    `session-<id>` name instead, silently. If a session with the same
-    resulting name already exists under today's folder, a numeric
-    disambiguator (`-2`, `-3`, ...) is appended so nothing overwrites.
+                    <session_name>.blocks.json
+                    <session_name>.transcript.md
+                    <session_name>.guide.md
+                    <session_name>.guide.pdf
     """
 
     if (
@@ -320,7 +257,8 @@ def record_session(
     base_name = slug or f"session-{session_id[:8]}"
 
     session_dir, session_name = _unique_session_dir(
-        sessions_dir / date_str, base_name
+        sessions_dir / date_str,
+        base_name,
     )
 
     session_dir.mkdir(
@@ -360,8 +298,7 @@ def record_session(
     pid, master_fd = pty.fork()
 
     if pid == 0:
-        # Child process:
-        # pty.fork() attaches the slave PTY as the controlling terminal.
+        # Child process.
 
         os.execvp(
             shell,
@@ -370,8 +307,7 @@ def record_session(
 
         os._exit(1)
 
-    # Parent process:
-    # relay bytes between the real terminal and the PTY master.
+    # Parent process.
 
     _set_pty_size(
         master_fd,
@@ -380,10 +316,6 @@ def record_session(
     )
 
     if is_tty:
-        # Put the *real* terminal into raw mode so every keystroke goes
-        # straight through to the PTY (no local line-editing/echo -- the
-        # shell inside the PTY handles that itself, exactly like a normal
-        # terminal session).
         import tty
 
         tty.setraw(stdin_fd)
@@ -393,23 +325,32 @@ def record_session(
 
         try:
             new_rows, new_cols = _get_size()
-            _set_pty_size(master_fd, new_rows, new_cols)
+            _set_pty_size(
+                master_fd,
+                new_rows,
+                new_cols,
+            )
         except OSError:
             pass
 
     have_winch = hasattr(signal, "SIGWINCH")
 
     old_winch_handler = (
-        signal.signal(signal.SIGWINCH, _handle_winch)
+        signal.signal(
+            signal.SIGWINCH,
+            _handle_winch,
+        )
         if have_winch
         else None
     )
 
-    # Bytes from the PTY can split a multi-byte UTF-8 character across
-    # reads; incremental decoders keep the partial bytes around instead
-    # of corrupting/dropping the character.
-    input_decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
-    output_decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
+    input_decoder = codecs.getincrementaldecoder(
+        "utf-8"
+    )(errors="replace")
+
+    output_decoder = codecs.getincrementaldecoder(
+        "utf-8"
+    )(errors="replace")
 
     console.print(
         "[dim]FlowScope is recording this session. "
@@ -426,7 +367,6 @@ def record_session(
                     0.25,
                 )
             except InterruptedError:
-                # Interrupted by a signal (e.g. SIGWINCH) -- just retry.
                 continue
             except OSError as exc:
                 if exc.errno == errno.EINTR:
@@ -435,27 +375,32 @@ def record_session(
 
             if master_fd in readable:
                 try:
-                    data = os.read(master_fd, READ_CHUNK)
+                    data = os.read(
+                        master_fd,
+                        READ_CHUNK,
+                    )
                 except OSError as exc:
-                    # EIO on Linux typically means the slave side (and
-                    # thus the shell) has gone away.
                     if exc.errno == errno.EIO:
                         data = b""
                     else:
                         raise
 
                 if not data:
-                    # The shell exited; nothing left to relay.
                     break
 
-                os.write(stdout_fd, data)
+                os.write(
+                    stdout_fd,
+                    data,
+                )
 
                 text = output_decoder.decode(data)
 
                 if text:
                     session.events.append(
                         Event(
-                            time=datetime.now(timezone.utc).isoformat(),
+                            time=datetime.now(
+                                timezone.utc
+                            ).isoformat(),
                             type="output",
                             text=text,
                         )
@@ -463,36 +408,52 @@ def record_session(
 
             if stdin_fd in readable:
                 try:
-                    data = os.read(stdin_fd, READ_CHUNK)
+                    data = os.read(
+                        stdin_fd,
+                        READ_CHUNK,
+                    )
                 except OSError:
                     data = b""
 
                 if data:
-                    os.write(master_fd, data)
+                    os.write(
+                        master_fd,
+                        data,
+                    )
 
                     text = input_decoder.decode(data)
 
                     if text:
                         session.events.append(
                             Event(
-                                time=datetime.now(timezone.utc).isoformat(),
+                                time=datetime.now(
+                                    timezone.utc
+                                ).isoformat(),
                                 type="input",
                                 text=text,
                             )
                         )
 
-            # Reap the child without blocking so we notice a shell exit
-            # even if it happens to close its PTY cleanly (no EIO/EOF).
             try:
-                waited_pid, _status = os.waitpid(pid, os.WNOHANG)
+                waited_pid, _status = os.waitpid(
+                    pid,
+                    os.WNOHANG,
+                )
             except ChildProcessError:
                 break
 
             if waited_pid == pid:
                 break
+
     finally:
-        if have_winch and old_winch_handler is not None:
-            signal.signal(signal.SIGWINCH, old_winch_handler)
+        if (
+            have_winch
+            and old_winch_handler is not None
+        ):
+            signal.signal(
+                signal.SIGWINCH,
+                old_winch_handler,
+            )
 
         if old_settings is not None:
             termios.tcsetattr(
@@ -506,17 +467,74 @@ def record_session(
         except OSError:
             pass
 
-    ended_dt = datetime.now(timezone.utc)
+    ended_dt = datetime.now(
+        timezone.utc
+    )
 
     session.ended_at = ended_dt.isoformat()
-    session.duration = (ended_dt - started_dt).total_seconds()
+
+    session.duration = (
+        ended_dt - started_dt
+    ).total_seconds()
+
+    session_data = session.to_dict()
 
     session_path.write_text(
-        json.dumps(session.to_dict(), indent=2, ensure_ascii=False),
+        json.dumps(
+            session_data,
+            indent=2,
+            ensure_ascii=False,
+        ),
         encoding="utf-8",
     )
 
     return session_path
+
+
+# ---------------------------------------------------------------------------
+# Remote API upload
+# ---------------------------------------------------------------------------
+
+def _upload_session(
+    session_path: Path,
+    artifacts: dict[str, str],
+) -> None:
+    """Upload a completed session and its generated artifacts."""
+
+    api_url = os.environ.get(
+        "FLOWSCOPE_API_URL"
+    )
+
+    if not api_url:
+        return
+
+    try:
+        session_data = json.loads(
+            session_path.read_text(
+                encoding="utf-8"
+            )
+        )
+
+        response = requests.post(
+            f"{api_url.rstrip('/')}/api/sessions",
+            json={
+                "session": session_data,
+                "artifacts": artifacts,
+            },
+            timeout=10,
+        )
+
+        response.raise_for_status()
+
+        console.print(
+            "[green]Session uploaded to FlowScope API.[/green]"
+        )
+
+    except requests.RequestException as exc:
+        console.print(
+            "[yellow]Session saved locally, but upload failed: "
+            f"{exc}[/yellow]"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -529,12 +547,12 @@ def _run_guide_pipeline(
     model: str = "gemini-3.6-flash",
     focus: str | None = None,
 ) -> None:
-    """Run Phases 2-6 on a recorded session: parse -> blocks -> transcript
-    -> AI-curated guide -> PDF. Each artifact is written next to the
-    session file and never overwrites the source session/blocks data."""
+    """Run Phases 2-6 on a recorded session.
 
-    # Imported lazily so `flowscope record --no-guide` and plain
-    # recording don't require pyte/reportlab/etc. to be installed.
+    The session and generated artifacts are uploaded only after the
+    command blocks and transcript have been generated.
+    """
+
     from flowscope_heuristics import session_blocks_payload
     from flowscope_markdown import render_markdown
     from flowscope_curator import curate_file
@@ -542,23 +560,71 @@ def _run_guide_pipeline(
 
     stem = session_path.stem
 
-    blocks_path = session_path.with_name(f"{stem}.blocks.json")
-    transcript_path = session_path.with_name(f"{stem}.transcript.md")
-    curated_path = session_path.with_name(f"{stem}.guide.md")
-    pdf_path = session_path.with_name(f"{stem}.guide.pdf")
+    blocks_path = session_path.with_name(
+        f"{stem}.blocks.json"
+    )
 
-    console.print("[dim]Parsing session and grouping command blocks...[/dim]")
+    transcript_path = session_path.with_name(
+        f"{stem}.transcript.md"
+    )
 
-    payload = session_blocks_payload(session_path)
+    curated_path = session_path.with_name(
+        f"{stem}.guide.md"
+    )
+
+    pdf_path = session_path.with_name(
+        f"{stem}.guide.pdf"
+    )
+
+    console.print(
+        "[dim]Parsing session and grouping command blocks...[/dim]"
+    )
+
+    payload = session_blocks_payload(
+        session_path
+    )
+
+    blocks_text = json.dumps(
+        payload,
+        indent=2,
+        ensure_ascii=False,
+    )
+
     blocks_path.write_text(
-        json.dumps(payload, indent=2, ensure_ascii=False),
+        blocks_text,
         encoding="utf-8",
     )
-    console.print(f"[green]Blocks:[/green]     {blocks_path}")
 
-    transcript = render_markdown(blocks_path)
-    transcript_path.write_text(transcript, encoding="utf-8")
-    console.print(f"[green]Transcript:[/green] {transcript_path}")
+    console.print(
+        f"[green]Blocks:[/green]     {blocks_path}"
+    )
+
+    transcript = render_markdown(
+        blocks_path
+    )
+
+    transcript_path.write_text(
+        transcript,
+        encoding="utf-8",
+    )
+
+    console.print(
+        f"[green]Transcript:[/green] {transcript_path}"
+    )
+
+    # Upload the raw session together with the generated blocks and
+    # transcript. This is the important part: the AWS API now receives
+    # blocks.json, so the frontend can display the commands.
+    session_id = json.loads(session_path.read_text(encoding="utf-8"))["session_id"]
+    artifacts = {
+        f"{session_id}.blocks.json": blocks_text,
+        f"{session_id}.transcript.md": transcript,
+    }
+
+    _upload_session(
+        session_path,
+        artifacts,
+    )
 
     console.print(
         "[dim]Sending session data to Gemini to identify the goal and "
@@ -573,18 +639,31 @@ def _run_guide_pipeline(
             model=model,
             focus=focus,
         )
+
     except Exception as exc:
-        console.print(f"[red]AI curation failed:[/red] {exc}")
+        console.print(
+            f"[red]AI curation failed:[/red] {exc}"
+        )
+
         console.print(
             "[dim]The transcript above is unaffected. Retry curation "
             f"later with: flowscope curate {blocks_path}[/dim]"
         )
+
         return
 
-    console.print(f"[green]Curated guide:[/green] {curated_path}")
+    console.print(
+        f"[green]Curated guide:[/green] {curated_path}"
+    )
 
-    render_markdown_to_pdf(curated, pdf_path)
-    console.print(f"[green]PDF guide:[/green]    {pdf_path}")
+    render_markdown_to_pdf(
+        curated,
+        pdf_path,
+    )
+
+    console.print(
+        f"[green]PDF guide:[/green]    {pdf_path}"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -629,15 +708,26 @@ def record(
         help="Optional hint about the goal of the session, to help curation.",
     ),
 ) -> None:
-    """Record a terminal session, then (by default) turn it into a guide."""
+    """Record a terminal session, then turn it into a guide."""
 
     try:
-        session_path = record_session(sessions_dir=sessions_dir, title=title)
-    except RuntimeError as exc:
-        console.print(f"[red]{exc}[/red]")
-        raise typer.Exit(code=1)
+        session_path = record_session(
+            sessions_dir=sessions_dir,
+            title=title,
+        )
 
-    console.print(f"[green]Session recorded:[/green] {session_path}")
+    except RuntimeError as exc:
+        console.print(
+            f"[red]{exc}[/red]"
+        )
+
+        raise typer.Exit(
+            code=1
+        )
+
+    console.print(
+        f"[green]Session recorded:[/green] {session_path}"
+    )
 
     if guide:
         _run_guide_pipeline(
@@ -646,6 +736,7 @@ def record(
             model=model,
             focus=focus,
         )
+
     else:
         console.print(
             f"[dim]Run `flowscope guide {session_path}` "
@@ -681,8 +772,13 @@ def guide(
     """Run the full Phase 2-6 pipeline on an existing recorded session."""
 
     if not session_path.exists():
-        console.print(f"[red]Session file not found:[/red] {session_path}")
-        raise typer.Exit(code=1)
+        console.print(
+            f"[red]Session file not found:[/red] {session_path}"
+        )
+
+        raise typer.Exit(
+            code=1
+        )
 
     _run_guide_pipeline(
         session_path,
@@ -723,7 +819,7 @@ def curate(
         help="Optional hint about the goal of the session, to help curation.",
     ),
 ) -> None:
-    """Send an existing blocks.json to Gemini and print/save the curated guide."""
+    """Send an existing blocks.json to Gemini and print/save the guide."""
 
     from flowscope_curator import curate_file
 
@@ -735,12 +831,21 @@ def curate(
             model=model,
             focus=focus,
         )
+
     except Exception as exc:
-        console.print(f"[red]AI curation failed:[/red] {exc}")
-        raise typer.Exit(code=1)
+        console.print(
+            f"[red]AI curation failed:[/red] {exc}"
+        )
+
+        raise typer.Exit(
+            code=1
+        )
 
     if out:
-        console.print(f"[green]Curated guide written to:[/green] {out}")
+        console.print(
+            f"[green]Curated guide written to:[/green] {out}"
+        )
+
     else:
         console.print(curated)
 
