@@ -1,6 +1,7 @@
 from pathlib import Path
 import json
 
+from fastapi import FastAPI, HTTPException
 from fastapi import FastAPI
 
 app = FastAPI(title="FlowScope API")
@@ -79,3 +80,39 @@ def get_sessions():
         sessions.append(load_session(session_file))
 
     return sessions
+@app.post("/api/sessions")
+def upload_session(payload: dict):
+    session_data = payload.get("session")
+    
+    if not session_data:
+        raise HTTPException(status_code=400, detail="Missing session data")
+
+    session_id = session_data.get("session_id")
+    started_at = session_data.get("started_at")
+
+    if not session_id or not started_at:
+        raise HTTPException(status_code=400, detail="Invalid session data")
+
+    date_str = started_at[:10]
+    session_name = session_id
+
+    session_dir = SESSIONS_DIR / date_str / session_name
+    session_dir.mkdir(parents=True, exist_ok=True)
+
+    session_file = session_dir / f"{session_name}.json"
+
+    session_file.write_text(
+        json.dumps(session_data, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+    for filename, content in payload.get("artifacts", {}).items():
+        (session_dir / filename).write_text(
+            content,
+            encoding="utf-8",
+        )
+
+    return {
+        "status": "uploaded",
+        "session_id": session_id,
+    }
